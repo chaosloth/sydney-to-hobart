@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<title>Conno Race Tracker</title>
+
+<head>
+    <meta http-equiv="refresh" content="180">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        #map {
+        height: 100%;
+    }
+
+    html,
+    body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
+    #content {
+      /*font-family: 'Amatic SC', cursive;*/
+      font-family: 'Rubik', cursive;
+    }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Amatic+SC:wght@700&family=Rubik:wght@300;400&display=swap" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=<KEY HERE>"></script>
+    <script type="text/javascript">
+    var map;
+
+    // When the window has finished loading create our google map below
+    google.maps.event.addDomListener(window, 'load', init);
+
+    function init() {
+        // Basic options for a simple Google Map
+        // For more options see: https://developers.google.com/maps/documentation/javascript/reference#MapOptions
+        var mapOptions = {
+            // How zoomed in you want the map to start at (always required)
+            zoom: 9,
+
+            // The latitude and longitude to center the map (always required)
+            center: new google.maps.LatLng(-34.397, 150.644), // Sydney
+
+            zoomControl: false,
+            mapTypeControl: false,
+            scaleControl: false,
+            streetViewControl: false,
+            rotateControl: false,
+            fullscreenControl: false,
+
+            // Custom colors
+            styles: [{ "featureType": "all", "elementType": "labels.text.fill", "stylers": [{ "color": "#ffffff" }] }, { "featureType": "all", "elementType": "labels.text.stroke", "stylers": [{ "color": "#000000" }, { "lightness": 13 }] }, { "featureType": "administrative", "elementType": "geometry.fill", "stylers": [{ "color": "#000000" }] }, { "featureType": "administrative", "elementType": "geometry.stroke", "stylers": [{ "color": "#144b53" }, { "lightness": 14 }, { "weight": 1.4 }] }, { "featureType": "landscape", "elementType": "all", "stylers": [{ "color": "#08304b" }] }, { "featureType": "poi", "elementType": "geometry", "stylers": [{ "color": "#0c4152" }, { "lightness": 5 }] }, { "featureType": "road.highway", "elementType": "geometry.fill", "stylers": [{ "color": "#000000" }] }, { "featureType": "road.highway", "elementType": "geometry.stroke", "stylers": [{ "color": "#0b434f" }, { "lightness": 25 }] }, { "featureType": "road.arterial", "elementType": "geometry.fill", "stylers": [{ "color": "#000000" }] }, { "featureType": "road.arterial", "elementType": "geometry.stroke", "stylers": [{ "color": "#0b3d51" }, { "lightness": 16 }] }, { "featureType": "road.local", "elementType": "geometry", "stylers": [{ "color": "#000000" }] }, { "featureType": "transit", "elementType": "all", "stylers": [{ "color": "#146474" }] }, { "featureType": "water", "elementType": "all", "stylers": [{ "color": "#021019" }] }]
+        };
+
+        // Get the HTML DOM element that will contain your map 
+        // We are using a div with id="map" seen below in the <body>
+        var mapElement = document.getElementById('map');
+
+        // Create the Google Map using our element and options defined above
+        map = new google.maps.Map(mapElement, mapOptions);
+
+        // Let's also add a marker while we're at it
+        var marker = new google.maps.Marker({
+            map: map,
+            title: 'Conno Race Tracker!',
+            disableDefaultUI: true
+        });
+    }
+
+    function getRandomArbitrary(min, max) {
+        return Math.random() * (max - min) + min;
+    }
+
+    var icon = "icon-m2.png";
+    var url = "https://api.allorigins.win/get?url=https://feeds.cycaracing.com/Yachts/152?raceTime=&rnd=" + getRandomArbitrary(1, 1000000000);
+    var infowindow = new google.maps.InfoWindow();
+
+    function getIcon(data) {
+        var icon = "icon-m.png";
+        if (data.Position.IsRetired || !data.Position.IsRacing) icon = "icon-g.png";
+        if (data.Position.DistanceToLeader < 10) icon = "icon-b.png";
+        if (data.Position.DistanceToLeader == 0) icon = "icon-l.png";
+        return icon;
+    }
+
+    var allBoats = [];
+
+    function loadBoats() {
+        $.getJSON(url, function(raw) {
+            allBoats = JSON.parse(raw.contents);
+
+            $.each(allBoats, function(key, data) {
+
+                var latLng = new google.maps.LatLng(data.lat, data.lng);
+
+                var marker = new google.maps.Marker({
+                    position: { lat: data.Position.Latitude, lng: data.Position.Longitude },
+                    map: map,
+                    icon: {
+                        url: getIcon(data),
+                        size: new google.maps.Size(80, 80),
+                        origin: new google.maps.Point(0, 0),
+                        anchor: new google.maps.Point(40, 40),
+                        labelOrigin: new google.maps.Point(40, 64)
+                    },
+                    title: data.Name,
+                    label: {
+                        text: data.Name,
+                        color: "white",
+                        fontWeight: "bold",
+                        fontSize: "12px"
+                    }
+                });
+
+                const details = `
+                    <div id="content">
+                    <h3>${data.Name}</h3>
+                    <div id="bodyContent">
+                     <p>SOG <b>${data.Position.SpeedOverGround}</b>, COG <b>${data.Position.CourseOverGround}</b>, Heading <b>${data.Position.Heading}</b></p>
+                     <p>Distance to go <b>${Math.round((data.Position.DistanceToGo + Number.EPSILON) * 100) / 100} nm</b>, Distance to leader <b>${data.Position.DistanceToLeader} nm</b></p>
+                     <p>Latitude <b>${data.Position.Latitude}</b>, Longitude <b>${data.Position.Longitude}</b></p>
+                    </div>
+                    </div>`;
+
+                bindInfoWindow(marker, map, infowindow, details, data);
+            });
+
+            focusMap();
+        });
+    }
+
+    var currentPath = null;
+
+    function bindInfoWindow(marker, map, infowindow, strDescription, boat) {
+        google.maps.event.addListener(marker, 'click', function() {
+            infowindow.setContent(strDescription);
+            infowindow.open(map, marker);
+
+            if (currentPath) currentPath.setMap(null);
+
+            var pathUrl = "https://api.allorigins.win/get?url=https://feeds.cycaracing.com/Yachts/Track/152/" + boat.RaceEntryId + "?rnd=" + getRandomArbitrary(1, 1000000000);
+
+            $.getJSON(pathUrl, function(raw) {
+                boatPath = JSON.parse(raw.contents);
+
+                var sailPathCoordinates = [];
+
+                $.each(boatPath, function(key, data) {
+                    var point = { lat: data.Latitude, lng: data.Longitude };
+
+                    sailPathCoordinates.push(point);
+                    // console.log("Point ", point);
+                });
+
+                currentPath = new google.maps.Polyline({
+                    path: sailPathCoordinates,
+                    geodesic: true,
+                    strokeColor: "#FF0000",
+                    strokeOpacity: 1.0,
+                    strokeWeight: 2,
+                });
+
+                currentPath.setMap(map);
+            });
+        });
+    }
+
+    function focusMap() {
+        var leader = findLeader()[0];
+        var latLng = new google.maps.LatLng(leader.Position.Latitude, leader.Position.Longitude);
+        map.panTo(latLng);
+    }
+
+    function findLeader() {
+        return $.grep(allBoats, function(boat) {
+            return boat.Position.DistanceToLeader == 0;
+        });
+    };
+
+    $(document).ready(function() {
+        loadBoats();
+    });
+    </script>
+</head>
+
+<body>
+    <div id="map"></div>
+</body>
+
+</html>
